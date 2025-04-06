@@ -7,6 +7,6 @@ ai_lab:
       user: "{{env_var('WEBSHOP_POSTGRES_USER')}}"
       password: "{{env_var('WEBSHOP_POSTGRES_PASSWORD')}}"
       port: 5432
-      dbname: postgres
-      schema: postgres
+      dbname: webshop_v2
+      schema: webshop
       threads: 6
