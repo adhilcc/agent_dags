@@ -7,6 +7,6 @@ ai_lab:
       user: "{{env_var('AIRFLOW_ADMIN_USERNAME')}}"
       password: "{{env_var('AIRFLOW_POSTGRES_PASSWORD')}}"
       port: 5432
-      dbname: webshop_v2
-      schema: webshop
+      dbname: airflow
+      schema: airflow
       threads: 6
