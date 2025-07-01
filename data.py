@@ -20,8 +20,8 @@ dbt_executable_path = "/dbt_venv/bin/dbt"  # Full path to dbt binary
 dbt_venv_path = "/dbt_venv/bin/activate"  # Path to activate virtual env
 
 # Get Airflow variables for database credentials
-postgres_user = Variable.get("WEBSHOP_POSTGRES_USER", default_var=os.environ.get("AIRFLOW_ADMIN_USERNAME"))
-postgres_password = Variable.get("WEBSHOP_POSTGRES_PASSWORD", default_var=os.environ.get("AIRFLOW_POSTGRES_PASSWORD"))
+postgres_user = Variable.get("WEBSHOP_POSTGRES_USER")
+postgres_password = Variable.get("WEBSHOP_POSTGRES_PASSWORD")
 # Define dbt commands
 dbt_seed_commands = [
     "address", "articles", "colors", "customer", "labels", 
