@@ -107,3 +107,14 @@ seeds:
           size_us: text
           size_uk: text
           size_eu: text
+models:
+  ai_lab:
+    materialization: "{{ 'table' if target.name == 'dev' else 'view}}"
+  elementary:
+    ## elementary models will be created in the schema '<your_schema>_elementary'
+    +schema: "elementary"
+    
+# Required from dbt 1.8 and above for certain Elementary features
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: False
+  source_freshness_run_project_hooks: True
