@@ -109,7 +109,7 @@ seeds:
           size_eu: text
 models:
   ai_lab:
-    materialization: "{{ 'table' if target.name == 'dev' else 'view}}"
+    materialization: "{{ 'table' if target.name == 'dev' else 'view'}}"
   elementary:
     ## elementary models will be created in the schema '<your_schema>_elementary'
     +schema: "elementary"
