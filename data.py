@@ -16,12 +16,13 @@ default_args = {
 
 # Define DBT project path and executable
 dbt_project_dir = "/appz/home/airflow/dags/agent_dags/dbt/webshop"
-dbt_executable_path = "/dbt_venv/bin/dbt"  # Full path to dbt binary
-dbt_venv_path = "/dbt_venv/bin/activate"  # Path to activate virtual env
+dbt_executable_path = "/dbt_venv/bin/dbt"
+dbt_venv_path = "/dbt_venv/bin/activate"
 
 # Get Airflow variables for database credentials
 postgres_user = Variable.get("WEBSHOP_POSTGRES_USER")
 postgres_password = Variable.get("WEBSHOP_POSTGRES_PASSWORD")
+
 # Define dbt commands
 dbt_seed_commands = [
     "address", "articles", "colors", "customer", "labels", 
@@ -30,8 +31,8 @@ dbt_seed_commands = [
 
 dbt_run_commands = ["order"]
 
-# Convert 8 AM IST to UTC (Airflow uses UTC by default)
-daily_schedule_utc = "30 2 * * *"  # Runs daily at 2:30 AM UTC (8:00 AM IST)
+# Convert 8 AM IST to UTC (Airflow uses UTC)
+daily_schedule_utc = "30 2 * * *"
 
 with DAG(
     'webshop_reset_data',
@@ -49,7 +50,8 @@ with DAG(
                 bash_command=f"source {dbt_venv_path} && cd {dbt_project_dir} && {dbt_executable_path} seed --select {seed}",
                 env={
                     "WEBSHOP_POSTGRES_USER": postgres_user,
-                    "WEBSHOP_POSTGRES_PASSWORD": postgres_password
+                    "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
+                    "DBT_PROFILES_DIR": dbt_project_dir,
                 }
             )
 
@@ -61,9 +63,28 @@ with DAG(
                 bash_command=f"source {dbt_venv_path} && cd {dbt_project_dir} && {dbt_executable_path} run --select {run}",
                 env={
                     "WEBSHOP_POSTGRES_USER": postgres_user,
-                    "WEBSHOP_POSTGRES_PASSWORD": postgres_password
+                    "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
+                    "DBT_PROFILES_DIR": dbt_project_dir,
                 }
             )
 
-    dbt_seed_group >> dbt_run_group  # Ensure dbt seed runs before dbt run
-#testing
+    # Elementary report generation
+    elementary_report_task = BashOperator(
+        task_id="generate_elementary_report",
+        bash_command=(
+            f"source {dbt_venv_path} && "
+            f"cd {dbt_project_dir} && "
+            f"edr report "
+            f"--project-dir {dbt_project_dir} "
+            f"--profiles-dir {dbt_project_dir} "
+            f"--target elementary"
+        ),
+        env={
+            "WEBSHOP_POSTGRES_USER": postgres_user,
+            "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
+            "DBT_PROFILES_DIR": dbt_project_dir,
+        }
+    )
+
+    # DAG Dependencies
+    dbt_seed_group >> dbt_run_group >> elementary_report_task
