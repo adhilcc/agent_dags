@@ -72,9 +72,9 @@ with DAG(
     elementary_report_task = BashOperator(
         task_id="generate_elementary_report",
         bash_command=(
+            f"mkdir -p {dbt_project_dir}/edr_target && "
             f"source {dbt_venv_path} && "
-            f"cd {dbt_project_dir} && "
-            f"edr report "
+            f"/dbt_venv/bin/edr report "
             f"--project-dir {dbt_project_dir} "
             f"--profiles-dir {dbt_project_dir} "
             f"--target elementary"
