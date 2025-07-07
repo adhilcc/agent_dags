@@ -84,7 +84,6 @@ with DAG(
             f"/dbt_venv/bin/edr report "
             f"--project-dir {dbt_project_dir} "
             f"--profiles-dir {dbt_project_dir} "
-            f"--profile-target elementary "
         ),
         env={
             "WEBSHOP_POSTGRES_USER": postgres_user,
