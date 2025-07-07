@@ -47,7 +47,13 @@ with DAG(
         for seed in dbt_seed_commands:
             BashOperator(
                 task_id=f"dbt_seed_{seed}",
-                bash_command=f"source {dbt_venv_path} && cd {dbt_project_dir} && {dbt_executable_path} seed --select {seed}",
+                bash_command=(
+                    f"source {dbt_venv_path} && "
+                    f"cd {dbt_project_dir} && "
+                    f"{dbt_executable_path} seed --select {seed} "
+                    f"--vars '{{\"orchestrator\": \"airflow\", \"job_name\": \"webshop_reset_data\", "
+                    f"\"job_id\": \"{{{{ ti.dag_id }}}}\", \"job_run_id\": \"{{{{ ti.run_id }}}}\"}}'"
+                ),
                 env={
                     "WEBSHOP_POSTGRES_USER": postgres_user,
                     "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
@@ -60,7 +66,13 @@ with DAG(
         for run in dbt_run_commands:
             BashOperator(
                 task_id=f"dbt_run_{run}",
-                bash_command=f"source {dbt_venv_path} && cd {dbt_project_dir} && {dbt_executable_path} run --select {run}",
+                bash_command=(
+                    f"source {dbt_venv_path} && "
+                    f"cd {dbt_project_dir} && "
+                    f"{dbt_executable_path} run --select {run} "
+                    f"--vars '{{\"orchestrator\": \"airflow\", \"job_name\": \"webshop_reset_data\", "
+                    f"\"job_id\": \"{{{{ ti.dag_id }}}}\", \"job_run_id\": \"{{{{ ti.run_id }}}}\"}}'"
+                ),
                 env={
                     "WEBSHOP_POSTGRES_USER": postgres_user,
                     "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
@@ -77,7 +89,9 @@ with DAG(
             f"/dbt_venv/bin/edr report "
             f"--project-dir {dbt_project_dir} "
             f"--profiles-dir {dbt_project_dir} "
-            f"--profile-target elementary"
+            f"--profile-target elementary "
+            f"--vars '{{\"orchestrator\": \"airflow\", \"job_name\": \"webshop_reset_data\", "
+            f"\"job_id\": \"{{{{ ti.dag_id }}}}\", \"job_run_id\": \"{{{{ ti.run_id }}}}\"}}'"
         ),
         env={
             "WEBSHOP_POSTGRES_USER": postgres_user,
