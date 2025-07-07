@@ -85,10 +85,6 @@ with DAG(
             f"--project-dir {dbt_project_dir} "
             f"--profiles-dir {dbt_project_dir} "
             f"--profile-target elementary "
-            f"--vars '{{\\\"orchestrator\\\": \\\"airflow\\\", "
-            f"\\\"job_name\\\": \\\"webshop_reset_data\\\", "
-            f"\\\"job_id\\\": \\\"{{{{ ti.dag_id }}}}\\\", "
-            f"\\\"job_run_id\\\": \\\"{{{{ ti.run_id }}}}\\\"}}'"
         ),
         env={
             "WEBSHOP_POSTGRES_USER": postgres_user,
