@@ -29,7 +29,7 @@ dbt_run_commands = ["order"]
 daily_schedule_utc = "30 2 * * *"
 
 with DAG(
-    'webshop_reset_data',
+    'webshop_reset_data_elementary',
     default_args=default_args,
     schedule_interval=daily_schedule_utc,
     catchup=False,
