@@ -36,6 +36,21 @@ with DAG(
     tags=["reset", "webshop", "data"]
 ) as dag:
 
+    
+    dbt_deps_task = BashOperator(
+        task_id="dbt_deps",
+        bash_command=(
+            f"source {dbt_venv_path} && "
+            f"cd {dbt_project_dir} && "
+            f"{dbt_executable_path} deps"
+        ),
+        env={
+            "WEBSHOP_POSTGRES_USER": postgres_user,
+            "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
+            "DBT_PROFILES_DIR": dbt_project_dir,
+        }
+    )
+
     with TaskGroup("dbt_seed") as dbt_seed_group:
         for seed in dbt_seed_commands:
             BashOperator(
@@ -112,4 +127,5 @@ with DAG(
         )
     )
 
-    dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
+    
+    dbt_deps_task >> dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
