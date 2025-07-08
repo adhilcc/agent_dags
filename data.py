@@ -48,6 +48,10 @@ with DAG(
             "WEBSHOP_POSTGRES_USER": postgres_user,
             "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
             "DBT_PROFILES_DIR": dbt_project_dir,
+            "ELEMENTARY_ORCHESTRATOR": "airflow",
+            "ELEMENTARY_JOB_NAME": "webshop_reset_data_elementary",
+            "ELEMENTARY_JOB_ID": "{{ ti.dag_id }}",
+            "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
         }
     )
 
