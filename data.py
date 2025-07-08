@@ -92,4 +92,12 @@ with DAG(
         }
     )
 
-    dbt_seed_group >> dbt_run_group >> elementary_report_task
+    copy_elementary_report = BashOperator(
+        task_id="copy_elementary_report",
+        bash_command=(
+            f"rm -rf /appz/home/airflow/docs/edr_target && "
+            f"cp -r {dbt_project_dir}/edr_target /appz/home/airflow/docs/"
+        )
+    )
+
+    dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
