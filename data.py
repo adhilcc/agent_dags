@@ -62,7 +62,7 @@ with DAG(
                 bash_command=(
                     f"source {dbt_venv_path} && "
                     f"cd {dbt_project_dir} && "
-                    f"{dbt_executable_path} seed --select {seed} "
+                    f"{dbt_executable_path} seed --full-refresh --select {seed} ..."
                     f"--vars '{{\\\"orchestrator\\\": \\\"airflow\\\", "
                     f"\\\"job_name\\\": \\\"webshop_reset_data_elementary\\\", "
                     f"\\\"job_id\\\": \\\"{{{{ ti.dag_id }}}}\\\", "
@@ -86,7 +86,7 @@ with DAG(
                 bash_command=(
                     f"source {dbt_venv_path} && "
                     f"cd {dbt_project_dir} && "
-                    f"{dbt_executable_path} run --select {run} "
+                    f"{dbt_executable_path} run --full-refresh --select {run} ..."
                     f"--vars '{{\\\"orchestrator\\\": \\\"airflow\\\", "
                     f"\\\"job_name\\\": \\\"webshop_reset_data_elementary\\\", "
                     f"\\\"job_id\\\": \\\"{{{{ ti.dag_id }}}}\\\", "
