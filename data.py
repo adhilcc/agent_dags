@@ -1,8 +1,9 @@
 from airflow import DAG
 from airflow.operators.bash import BashOperator
+from airflow.sensors.python import PythonSensor
 from airflow.utils.task_group import TaskGroup
-from datetime import datetime, timedelta
 from airflow.models import Variable
+from datetime import datetime, timedelta
 import os
 
 default_args = {
@@ -16,6 +17,7 @@ default_args = {
 dbt_project_dir = "/appz/home/airflow/dags/agent_dags/dbt/webshop"
 dbt_executable_path = "/dbt_venv/bin/dbt"
 dbt_venv_path = "/dbt_venv/bin/activate"
+dbt_packages_dir = os.path.join(dbt_project_dir, "dbt_packages")
 
 postgres_user = Variable.get("WEBSHOP_POSTGRES_USER")
 postgres_password = Variable.get("WEBSHOP_POSTGRES_PASSWORD")
@@ -29,6 +31,9 @@ dbt_run_commands = ["order"]
 
 daily_schedule_utc = "30 2 * * *"
 
+def check_dbt_packages():
+    return os.path.exists(dbt_packages_dir)
+
 with DAG(
     'webshop_reset_data',
     default_args=default_args,
@@ -37,7 +42,7 @@ with DAG(
     tags=["reset", "webshop", "data"]
 ) as dag:
 
-    dbt_deps_task = BashOperator(
+    dbt_deps = BashOperator(
         task_id="dbt_deps",
         bash_command=(
             f"source {dbt_venv_path} && "
@@ -45,14 +50,18 @@ with DAG(
             f"{dbt_executable_path} deps"
         ),
         env={
+            "DBT_PROFILES_DIR": dbt_project_dir,
             "WEBSHOP_POSTGRES_USER": postgres_user,
             "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
-            "DBT_PROFILES_DIR": dbt_project_dir,
-            "ELEMENTARY_ORCHESTRATOR": "airflow",
-            "ELEMENTARY_JOB_NAME": "webshop_reset_data_elementary",
-            "ELEMENTARY_JOB_ID": "{{ ti.dag_id }}",
-            "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
         }
+    )
+
+    wait_for_dbt_packages = PythonSensor(
+        task_id="wait_for_dbt_packages",
+        python_callable=check_dbt_packages,
+        mode='poke',
+        poke_interval=10,
+        timeout=120,  # Wait up to 2 minutes
     )
 
     with TaskGroup("dbt_seed") as dbt_seed_group:
@@ -70,22 +79,17 @@ with DAG(
                     f"\\\"job_run_id\\\": \\\"{{{{ ti.run_id }}}}\\\"}}'"
                 ),
                 env={
+                    "DBT_PROFILES_DIR": dbt_project_dir,
                     "WEBSHOP_POSTGRES_USER": postgres_user,
                     "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
-                    "DBT_PROFILES_DIR": dbt_project_dir,
-                    "ELEMENTARY_ORCHESTRATOR": "airflow",
-                    "ELEMENTARY_JOB_NAME": "webshop_reset_data_elementary",
-                    "ELEMENTARY_JOB_ID": "{{ ti.dag_id }}",
-                    "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
                 }
             )
             dbt_seed_tasks[seed] = task
-            dbt_deps_task >> task  # Ensure dbt_deps runs before each seed task
+            wait_for_dbt_packages >> task
 
     with TaskGroup("dbt_run") as dbt_run_group:
-        dbt_run_tasks = {}
         for run in dbt_run_commands:
-            task = BashOperator(
+            run_task = BashOperator(
                 task_id=f"dbt_run_{run}",
                 bash_command=(
                     f"source {dbt_venv_path} && "
@@ -97,44 +101,32 @@ with DAG(
                     f"\\\"job_run_id\\\": \\\"{{{{ ti.run_id }}}}\\\"}}'"
                 ),
                 env={
+                    "DBT_PROFILES_DIR": dbt_project_dir,
                     "WEBSHOP_POSTGRES_USER": postgres_user,
                     "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
-                    "DBT_PROFILES_DIR": dbt_project_dir,
-                    "ELEMENTARY_ORCHESTRATOR": "airflow",
-                    "ELEMENTARY_JOB_NAME": "webshop_reset_data_elementary",
-                    "ELEMENTARY_JOB_ID": "{{ ti.dag_id }}",
-                    "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
                 }
             )
-            dbt_run_tasks[run] = task
-
-            dbt_deps_task >> task  # Ensure dbt_deps runs before dbt_run task
-
-            # Ensure all seed tasks finish before any dbt_run task
             for seed_task in dbt_seed_tasks.values():
-                seed_task >> task
+                seed_task >> run_task
+            wait_for_dbt_packages >> run_task
 
-    elementary_report_task = BashOperator(
+    elementary_report = BashOperator(
         task_id="generate_elementary_report",
         bash_command=(
             f"mkdir -p {dbt_project_dir}/edr_target && "
             f"source {dbt_venv_path} && "
             f"/dbt_venv/bin/edr report "
             f"--project-dir {dbt_project_dir} "
-            f"--profiles-dir {dbt_project_dir} "
+            f"--profiles-dir {dbt_project_dir}"
         ),
         env={
+            "DBT_PROFILES_DIR": dbt_project_dir,
             "WEBSHOP_POSTGRES_USER": postgres_user,
             "WEBSHOP_POSTGRES_PASSWORD": postgres_password,
-            "DBT_PROFILES_DIR": dbt_project_dir,
-            "ELEMENTARY_ORCHESTRATOR": "airflow",
-            "ELEMENTARY_JOB_NAME": "webshop_reset_data_elementary",
-            "ELEMENTARY_JOB_ID": "{{ ti.dag_id }}",
-            "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
         }
     )
 
-    copy_elementary_report = BashOperator(
+    copy_edr_report = BashOperator(
         task_id="copy_elementary_report",
         bash_command=(
             f"rm -rf /appz/home/airflow/docs/edr_target && "
@@ -142,5 +134,5 @@ with DAG(
         )
     )
 
-    # Final DAG order
-    dbt_run_group >> elementary_report_task >> copy_elementary_report
+    dbt_deps >> wait_for_dbt_packages
+    dbt_run_group >> elementary_report >> copy_edr_report
