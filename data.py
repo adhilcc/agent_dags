@@ -132,4 +132,4 @@ with DAG(
     )
 
     # Final task flow
-    dbt_seed_group >> dbt_deps_task >> dbt_run_group >> elementary_report_task >> copy_elementary_report
+    dbt_deps_task >> dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
