@@ -3,6 +3,7 @@ from airflow.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
 from datetime import datetime, timedelta
 from airflow.models import Variable
+import os
 
 default_args = {
     'owner': 'lowtouch.ai_developers',
@@ -29,14 +30,13 @@ dbt_run_commands = ["order"]
 daily_schedule_utc = "30 2 * * *"
 
 with DAG(
-    'webshop_reset_data_elementary',
+    'webshop_reset_data',
     default_args=default_args,
     schedule_interval=daily_schedule_utc,
     catchup=False,
     tags=["reset", "webshop", "data"]
 ) as dag:
 
-    
     dbt_deps_task = BashOperator(
         task_id="dbt_deps",
         bash_command=(
@@ -57,12 +57,12 @@ with DAG(
 
     with TaskGroup("dbt_seed") as dbt_seed_group:
         for seed in dbt_seed_commands:
-            BashOperator(
+            seed_task = BashOperator(
                 task_id=f"dbt_seed_{seed}",
                 bash_command=(
                     f"source {dbt_venv_path} && "
                     f"cd {dbt_project_dir} && "
-                    f"{dbt_executable_path} seed --select {seed} ..."
+                    f"{dbt_executable_path} seed --select {seed} "
                     f"--vars '{{\\\"orchestrator\\\": \\\"airflow\\\", "
                     f"\\\"job_name\\\": \\\"webshop_reset_data_elementary\\\", "
                     f"\\\"job_id\\\": \\\"{{{{ ti.dag_id }}}}\\\", "
@@ -78,15 +78,17 @@ with DAG(
                     "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
                 }
             )
+            # Ensure dbt deps runs before each seed task
+            dbt_deps_task >> seed_task
 
     with TaskGroup("dbt_run") as dbt_run_group:
         for run in dbt_run_commands:
-            BashOperator(
+            run_task = BashOperator(
                 task_id=f"dbt_run_{run}",
                 bash_command=(
                     f"source {dbt_venv_path} && "
                     f"cd {dbt_project_dir} && "
-                    f"{dbt_executable_path} run --select {run} ..."
+                    f"{dbt_executable_path} run --select {run} "
                     f"--vars '{{\\\"orchestrator\\\": \\\"airflow\\\", "
                     f"\\\"job_name\\\": \\\"webshop_reset_data_elementary\\\", "
                     f"\\\"job_id\\\": \\\"{{{{ ti.dag_id }}}}\\\", "
@@ -102,6 +104,8 @@ with DAG(
                     "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
                 }
             )
+            # Ensure dbt seed completes before each dbt run
+            dbt_seed_group >> run_task
 
     elementary_report_task = BashOperator(
         task_id="generate_elementary_report",
@@ -131,5 +135,5 @@ with DAG(
         )
     )
 
-    
-    dbt_deps_task >> dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
+    # Final chaining
+    dbt_run_group >> elementary_report_task >> copy_elementary_report
