@@ -107,8 +107,12 @@ with DAG(
                 }
             )
             dbt_run_tasks[run] = task
-            dbt_deps_task >> task  # Ensure dbt_deps runs before each run task
-            dbt_seed_group >> task  # Ensure seeds complete before runs
+
+            dbt_deps_task >> task  # Ensure dbt_deps runs before dbt_run task
+
+            # Ensure all seed tasks finish before any dbt_run task
+            for seed_task in dbt_seed_tasks.values():
+                seed_task >> task
 
     elementary_report_task = BashOperator(
         task_id="generate_elementary_report",
@@ -138,4 +142,5 @@ with DAG(
         )
     )
 
+    # Final DAG order
     dbt_run_group >> elementary_report_task >> copy_elementary_report
