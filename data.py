@@ -80,10 +80,7 @@ with DAG(
                 }
             )
             dbt_seed_tasks[seed] = task
-
-    # 🔧 Fix: ensure all seed tasks depend on dbt_deps_task
-    for task in dbt_seed_tasks.values():
-        dbt_deps_task >> task
+            dbt_deps_task >> task  # ✅ Ensure each seed depends on dbt_deps
 
     with TaskGroup("dbt_run") as dbt_run_group:
         for run in dbt_run_commands:
@@ -137,7 +134,6 @@ with DAG(
         )
     )
 
+    # DAG Flow
     dbt_deps_task >> dbt_seed_group
-    dbt_deps_task >> dbt_run_group
     dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
-
