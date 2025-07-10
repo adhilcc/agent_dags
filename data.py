@@ -129,5 +129,5 @@ with DAG(
     )
 
     dbt_deps >> wait_for_dbt_packages
-    dbt_deps >> dbt_seed
+    dbt_deps >> dbt_seed_group
     dbt_deps >> dbt_run_group  >> elementary_report >> copy_edr_report
