@@ -57,7 +57,7 @@ with DAG(
 
     with TaskGroup("dbt_seed") as dbt_seed_group:
         for seed in dbt_seed_commands:
-            seed_task = BashOperator(
+            BashOperator(
                 task_id=f"dbt_seed_{seed}",
                 bash_command=(
                     f"source {dbt_venv_path} && "
@@ -78,12 +78,10 @@ with DAG(
                     "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
                 }
             )
-            # Ensure dbt deps runs before each seed task
-            dbt_deps_task >> seed_task
 
     with TaskGroup("dbt_run") as dbt_run_group:
         for run in dbt_run_commands:
-            run_task = BashOperator(
+            BashOperator(
                 task_id=f"dbt_run_{run}",
                 bash_command=(
                     f"source {dbt_venv_path} && "
@@ -104,8 +102,6 @@ with DAG(
                     "ELEMENTARY_JOB_RUN_ID": "{{ ti.run_id }}"
                 }
             )
-            # Ensure dbt seed completes before each dbt run
-            dbt_seed_group >> run_task
 
     elementary_report_task = BashOperator(
         task_id="generate_elementary_report",
@@ -135,6 +131,5 @@ with DAG(
         )
     )
 
-
-dbt_deps_task >> dbt_seed_group >> dbt_run_group >> elementary_report_task >> copy_elementary_report
-
+    # Final task flow
+    dbt_seed_group >> dbt_deps_task >> dbt_run_group >> elementary_report_task >> copy_elementary_report
